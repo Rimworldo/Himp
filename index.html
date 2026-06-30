@@ -1519,65 +1519,35 @@
             }
 
             async function searchYouTube(query) {
-                // Tentativa 1: API do Piped (Mais estável e rápida para buscas de texto)
+                // Remove o comando "%himp " caso ele tenha ido junto na mensagem
+                query = query.replace(/^%himp\s+/i, '');
+
+                // Cole sua chave da API do Google entre as aspas abaixo:
+                const API_KEY = "SUA_CHAVE_API_AQUI"; 
+
+                if (API_KEY === "SUA_CHAVE_API_AQUI") {
+                    console.error("Você precisa colocar sua API Key do Google no script!");
+                    return null;
+                }
+
                 try {
-                    const res = await fetch(`https://pipedapi.kavin.rocks/search?q=${encodeURIComponent(query)}&filter=videos`);
+                    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=1&key=${API_KEY}`;
+                    const res = await fetch(url);
                     if (res.ok) {
                         const data = await res.json();
-                        // Pega o primeiro item que é um vídeo
-                        const video = data.items.find(item => item.url && item.url.includes('/watch?v='));
-                        if (video) {
-                            const videoId = video.url.split('v=')[1].split('&')[0];
-                            return { videoId: videoId, title: video.title };
+                        if (data.items && data.items.length > 0) {
+                            const video = data.items[0];
+                            return { 
+                                videoId: video.id.videoId, 
+                                title: video.snippet.title 
+                            };
                         }
                     }
                 } catch (e) {
-                    console.log("Piped falhou na busca, tentando fallback...");
-                }
-
-                // Tentativa 2: Fallback com instâncias Invidious atualizadas
-                const instancias = [
-                    "https://invidious.fdn.fr",
-                    "https://inv.tux.pizza"
-                ];
-                
-                for (let inst of instancias) {
-                    try {
-                        const res = await fetch(`${inst}/api/v1/search?q=${encodeURIComponent(query)}&type=video`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data && data[0] && data[0].videoId) {
-                                return { videoId: data[0].videoId, title: data[0].title };
-                            }
-                        }
-                    } catch (e) {}
+                    console.error("Erro na busca oficial do YouTube:", e);
                 }
                 
-                return null; // Nada encontrado
-            }
-
-            async function getVideoDuration(id) {
-                // Tentativa 1 via Piped
-                try {
-                    const res = await fetch(`https://pipedapi.kavin.rocks/streams/${id}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data.duration) return data.duration;
-                    }
-                } catch (e) {}
-
-                // Tentativa 2 via Invidious atualizado
-                const instancias = ["https://invidious.fdn.fr", "https://inv.tux.pizza"];
-                for (let inst of instancias) {
-                    try {
-                        const res = await fetch(`${inst}/api/v1/videos/${id}`);
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data.lengthSeconds) return data.lengthSeconds;
-                        }
-                    } catch (e) {}
-                }
-                return 0;
+                return null;
             }
 
             async function fetchTitle(id) {
